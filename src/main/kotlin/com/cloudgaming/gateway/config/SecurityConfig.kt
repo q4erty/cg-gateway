@@ -41,9 +41,10 @@ class SecurityConfig(
                 oauth2.jwt { jwt ->
                     jwt.jwtAuthenticationConverter(
                         ReactiveJwtAuthenticationConverterAdapter(
-                            org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter().apply {
-                                setJwtGrantedAuthoritiesConverter(keycloakRoleConverter)
-                            }
+                            org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter()
+                                .apply {
+                                    setJwtGrantedAuthoritiesConverter(keycloakRoleConverter)
+                                }
                         )
                     )
                 }

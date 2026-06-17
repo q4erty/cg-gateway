@@ -23,21 +23,11 @@ spring:
           uri: http://localhost:8082
           predicates:
             - Path=/api/sessions/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: sessionCircuitBreaker
-                fallbackUri: forward:/fallback/session
 
         - id: billing-service
           uri: http://localhost:8083
           predicates:
             - Path=/api/billing/**
-          filters:
-            - name: CircuitBreaker
-              args:
-                name: billingCircuitBreaker
-                fallbackUri: forward:/fallback/billing
 
         - id: notification-service
           uri: http://localhost:8084
@@ -53,7 +43,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health, info, gateway
+        include: health, info, gateway, metrics
   endpoint:
     health:
       show-details: always

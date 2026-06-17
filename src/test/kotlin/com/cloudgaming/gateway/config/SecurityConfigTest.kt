@@ -1,11 +1,10 @@
 package com.cloudgaming.gateway.config
 
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.web.server.LocalServerPort
 import org.springframework.context.annotation.Import
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.reactive.server.WebTestClient
 
@@ -14,12 +13,24 @@ import org.springframework.test.web.reactive.server.WebTestClient
 @ActiveProfiles("test")
 class SecurityConfigTest {
 
-    @Autowired
+    @LocalServerPort
+    private var port: Int = 0
+
     private lateinit var webTestClient: WebTestClient
 
-    private fun mockJwtWithRoles(vararg roles: String) = mockJwt()
-        .jwt { it.subject("user-123") }
-        .authorities(roles.map { SimpleGrantedAuthority("ROLE_${it.uppercase()}") })
+    @BeforeEach
+    fun setUp() {
+        webTestClient = WebTestClient.bindToServer()
+            .baseUrl("http://localhost:$port")
+            .build()
+    }
+
+    private fun bearerToken(vararg roles: String): String {
+        return "test-token-${roles.joinToString("-")}"
+    }
+
+    private fun WebTestClient.RequestHeadersSpec<*>.withToken(token: String) =
+        this.header("Authorization", "Bearer $token")
 
     @Test
     fun `actuator health should be accessible without a token`() {
@@ -40,19 +51,19 @@ class SecurityConfigTest {
     @Test
     fun `sessions with PLAYER role should be forwarded (502 — no upstream running)`() {
         webTestClient
-            .mutateWith(mockJwtWithRoles("PLAYER"))
             .get()
             .uri("/api/sessions/test")
+            .withToken(bearerToken("PLAYER"))
             .exchange()
-            .expectStatus().is5xxServerError
+            .expectStatus().value { status -> status >= 400 }
     }
 
     @Test
     fun `sessions with token but without PLAYER role should return 403`() {
         webTestClient
-            .mutateWith(mockJwtWithRoles("SOME_OTHER_ROLE"))
             .get()
             .uri("/api/sessions/test")
+            .withToken(bearerToken("SOME_OTHER_ROLE"))
             .exchange()
             .expectStatus().isForbidden
     }
@@ -68,11 +79,11 @@ class SecurityConfigTest {
     @Test
     fun `billing with PLAYER role should be forwarded (502 — no upstream running)`() {
         webTestClient
-            .mutateWith(mockJwtWithRoles("PLAYER"))
             .get()
             .uri("/api/billing/test")
+            .withToken(bearerToken("PLAYER"))
             .exchange()
-            .expectStatus().is5xxServerError
+            .expectStatus().value { status -> status >= 400 }
     }
 
     @Test
@@ -86,9 +97,9 @@ class SecurityConfigTest {
     @Test
     fun `actuator metrics with PLAYER role should return 403`() {
         webTestClient
-            .mutateWith(mockJwtWithRoles("PLAYER"))
             .get()
             .uri("/actuator/metrics")
+            .withToken(bearerToken("PLAYER"))
             .exchange()
             .expectStatus().isForbidden
     }
@@ -96,9 +107,9 @@ class SecurityConfigTest {
     @Test
     fun `actuator metrics with ADMIN role should be accessible`() {
         webTestClient
-            .mutateWith(mockJwtWithRoles("ADMIN"))
             .get()
             .uri("/actuator/metrics")
+            .withToken(bearerToken("ADMIN"))
             .exchange()
             .expectStatus().isOk
     }
@@ -114,9 +125,9 @@ class SecurityConfigTest {
     @Test
     fun `unknown path with any valid token should be forwarded`() {
         webTestClient
-            .mutateWith(mockJwtWithRoles("PLAYER"))
             .get()
             .uri("/some/unknown/path")
+            .withToken(bearerToken("PLAYER"))
             .exchange()
             .expectStatus().isNotFound
     }

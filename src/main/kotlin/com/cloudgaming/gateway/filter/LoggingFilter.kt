@@ -1,20 +1,20 @@
 package com.cloudgaming.gateway.filter
 
 import org.slf4j.LoggerFactory
-import org.springframework.cloud.gateway.filter.GatewayFilterChain
-import org.springframework.cloud.gateway.filter.GlobalFilter
 import org.springframework.core.Ordered
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.stereotype.Component
 import org.springframework.web.server.ServerWebExchange
+import org.springframework.web.server.WebFilter
+import org.springframework.web.server.WebFilterChain
 import reactor.core.publisher.Mono
 
 @Component
-class LoggingFilter : GlobalFilter, Ordered {
+class LoggingFilter : WebFilter, Ordered {
 
     private val log = LoggerFactory.getLogger(LoggingFilter::class.java)
 
-    override fun filter(exchange: ServerWebExchange, chain: GatewayFilterChain): Mono<Void> {
+    override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         val request = exchange.request
         val startTime = System.currentTimeMillis()
 
