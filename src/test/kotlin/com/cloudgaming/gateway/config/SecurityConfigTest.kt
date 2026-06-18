@@ -69,21 +69,37 @@ class SecurityConfigTest {
     }
 
     @Test
-    fun `billing without token should return 401`() {
+    fun `payments without token should return 401`() {
         webTestClient.get()
-            .uri("/api/billing/test")
+            .uri("/api/payments/test")
             .exchange()
             .expectStatus().isUnauthorized
     }
 
     @Test
-    fun `billing with PLAYER role should be forwarded (502 — no upstream running)`() {
+    fun `payments with PLAYER role should be forwarded (502 — no upstream running)`() {
         webTestClient
             .get()
-            .uri("/api/billing/test")
+            .uri("/api/payments/test")
             .withToken(bearerToken("PLAYER"))
             .exchange()
             .expectStatus().value { status -> status >= 400 }
+    }
+
+    @Test
+    fun `stripe webhook should be accessible without a token`() {
+        webTestClient.post()
+            .uri("/api/webhooks/stripe/events")
+            .exchange()
+            .expectStatus().value { status -> status != 401 && status != 403 }
+    }
+
+    @Test
+    fun `yookassa webhook should be accessible without a token`() {
+        webTestClient.post()
+            .uri("/api/webhooks/yookassa/events")
+            .exchange()
+            .expectStatus().value { status -> status != 401 && status != 403 }
     }
 
     @Test
@@ -130,5 +146,67 @@ class SecurityConfigTest {
             .withToken(bearerToken("PLAYER"))
             .exchange()
             .expectStatus().isNotFound
+    }
+
+    @Test
+    fun `users endpoint without token should return 401`() {
+        webTestClient.get()
+            .uri("/api/users/me")
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `users endpoint with any valid token should be forwarded`() {
+        webTestClient
+            .get()
+            .uri("/api/users/me")
+            .withToken(bearerToken("PLAYER"))
+            .exchange()
+            .expectStatus().value { status -> status >= 400 }
+    }
+
+    @Test
+    fun `notifications endpoint without token should return 401`() {
+        webTestClient.get()
+            .uri("/api/notifications/list")
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `notifications endpoint with any valid token should be forwarded`() {
+        webTestClient
+            .get()
+            .uri("/api/notifications/list")
+            .withToken(bearerToken("PLAYER"))
+            .exchange()
+            .expectStatus().value { status -> status >= 400 }
+    }
+
+    @Test
+    fun `signaling endpoint without token should return 401`() {
+        webTestClient.get()
+            .uri("/api/v1/signaling/connect")
+            .exchange()
+            .expectStatus().isUnauthorized
+    }
+
+    @Test
+    fun `signaling endpoint with PLAYER role should be forwarded`() {
+        webTestClient
+            .get()
+            .uri("/api/v1/signaling/connect")
+            .withToken(bearerToken("PLAYER"))
+            .exchange()
+            .expectStatus().value { status -> status >= 400 }
+    }
+
+    @Test
+    fun `actuator info should be accessible without token`() {
+        webTestClient.get()
+            .uri("/actuator/info")
+            .exchange()
+            .expectStatus().isOk
     }
 }
