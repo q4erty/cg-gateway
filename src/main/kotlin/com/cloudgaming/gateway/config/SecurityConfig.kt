@@ -29,12 +29,20 @@ class SecurityConfig(
             .cors { it.configurationSource(corsConfigurationSource()) }
             .authorizeExchange { auth ->
                 auth
+                    // Public endpoints
                     .pathMatchers("/actuator/health").permitAll()
                     .pathMatchers("/actuator/info").permitAll()
+                    // Webhook
+                    .pathMatchers("/api/webhooks/**").permitAll()
+                    // Admin endpoints
                     .pathMatchers("/actuator/**").hasRole("ADMIN")
+                    // Protected endpoints
+                    .pathMatchers("/api/users/**").authenticated()
                     .pathMatchers("/api/sessions/**").hasRole("PLAYER")
-                    .pathMatchers("/api/billing/**").hasRole("PLAYER")
-                    .pathMatchers("/signaling/**").hasRole("PLAYER")
+                    .pathMatchers("/api/payments/**").hasRole("PLAYER")
+                    .pathMatchers("/api/v1/signaling/**").hasRole("PLAYER")
+                    .pathMatchers("/api/notifications/**").authenticated()
+                    // Default
                     .anyExchange().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->

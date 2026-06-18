@@ -12,6 +12,11 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
 
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
   cloud:
     gateway:
       httpclient:
@@ -19,6 +24,16 @@ spring:
         response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:10s}
 
       routes:
+        - id: user-service
+          uri: ${USER_SERVICE_URI}
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: userCircuitBreaker
+                fallbackUri: forward:/fallback/user
+
         - id: session-manager
           uri: ${SESSION_MANAGER_URI}
           predicates:
@@ -28,16 +43,36 @@ spring:
               args:
                 name: sessionCircuitBreaker
                 fallbackUri: forward:/fallback/session
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${RATE_LIMIT_SESSIONS_REPLENISH:10}
+                redis-rate-limiter.burstCapacity: ${RATE_LIMIT_SESSIONS_BURST:20}
+                key-resolver: "#{@userKeyResolver}"
 
-        - id: billing-service
-          uri: ${BILLING_SERVICE_URI}
+        - id: payment-service
+          uri: ${PAYMENT_SERVICE_URI}
           predicates:
-            - Path=/api/billing/**
+            - Path=/api/payments/**
           filters:
             - name: CircuitBreaker
               args:
-                name: billingCircuitBreaker
-                fallbackUri: forward:/fallback/billing
+                name: paymentCircuitBreaker
+                fallbackUri: forward:/fallback/payment
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: ${RATE_LIMIT_PAYMENTS_REPLENISH:5}
+                redis-rate-limiter.burstCapacity: ${RATE_LIMIT_PAYMENTS_BURST:10}
+                key-resolver: "#{@userKeyResolver}"
+
+        - id: stripe-webhook
+          uri: ${PAYMENT_SERVICE_URI}
+          predicates:
+            - Path=/api/webhooks/stripe/**
+
+        - id: yookassa-webhook
+          uri: ${PAYMENT_SERVICE_URI}
+          predicates:
+            - Path=/api/webhooks/yookassa/**
 
         - id: notification-service
           uri: ${NOTIFICATION_SERVICE_URI}
@@ -45,9 +80,9 @@ spring:
             - Path=/api/notifications/**
 
         - id: signaling-ws
-          uri: ${SIGNALING_WS_URI}
+          uri: lb:ws://${SIGNALING_SERVICE_NAME:signaling-service}
           predicates:
-            - Path=/signaling/**
+            - Path=/api/v1/signaling/**
 
 management:
   endpoints:
@@ -73,3 +108,11 @@ app:
     allowed-headers: ${CORS_ALLOWED_HEADERS:*}
     allow-credentials: ${CORS_ALLOW_CREDENTIALS:true}
     max-age: ${CORS_MAX_AGE:3600}
+
+  rate-limit:
+    sessions:
+      replenish-rate: ${RATE_LIMIT_SESSIONS_REPLENISH:10}
+      burst-capacity: ${RATE_LIMIT_SESSIONS_BURST:20}
+    payments:
+      replenish-rate: ${RATE_LIMIT_PAYMENTS_REPLENISH:5}
+      burst-capacity: ${RATE_LIMIT_PAYMENTS_BURST:10}

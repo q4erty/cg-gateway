@@ -43,12 +43,20 @@ class TestSecurityConfig {
             .csrf { it.disable() }
             .authorizeExchange { auth ->
                 auth
+                    // Public endpoints
                     .pathMatchers("/actuator/health").permitAll()
                     .pathMatchers("/actuator/info").permitAll()
+                    // Webhook
+                    .pathMatchers("/api/webhooks/**").permitAll()
+                    // Admin endpoints
                     .pathMatchers("/actuator/**").hasAuthority("SCOPE_ADMIN")
+                    // Protected endpoints
+                    .pathMatchers("/api/users/**").authenticated()
                     .pathMatchers("/api/sessions/**").hasAuthority("SCOPE_PLAYER")
-                    .pathMatchers("/api/billing/**").hasAuthority("SCOPE_PLAYER")
-                    .pathMatchers("/signaling/**").hasAuthority("SCOPE_PLAYER")
+                    .pathMatchers("/api/payments/**").hasAuthority("SCOPE_PLAYER")
+                    .pathMatchers("/api/v1/signaling/**").hasAuthority("SCOPE_PLAYER")
+                    .pathMatchers("/api/notifications/**").authenticated()
+                    // Default
                     .anyExchange().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->

@@ -5,6 +5,11 @@ spring:
   main:
     web-application-type: reactive
 
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+
   security:
     oauth2:
       resourceserver:
@@ -19,15 +24,30 @@ spring:
         response-timeout: 10s
 
       routes:
+        - id: user-service
+          uri: http://localhost:8081
+          predicates:
+            - Path=/api/users/**
+
         - id: session-manager
           uri: http://localhost:8082
           predicates:
             - Path=/api/sessions/**
 
-        - id: billing-service
+        - id: payment-service
           uri: http://localhost:8083
           predicates:
-            - Path=/api/billing/**
+            - Path=/api/payments/**
+
+        - id: stripe-webhook
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/webhooks/stripe/**
+
+        - id: yookassa-webhook
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/webhooks/yookassa/**
 
         - id: notification-service
           uri: http://localhost:8084
@@ -35,9 +55,9 @@ spring:
             - Path=/api/notifications/**
 
         - id: signaling-ws
-          uri: http://localhost:8085
+          uri: ws://localhost:8085
           predicates:
-            - Path=/signaling/**
+            - Path=/api/v1/signaling/**
 
 management:
   endpoints:
@@ -49,6 +69,9 @@ management:
       show-details: always
     gateway:
       enabled: true
+  health:
+    redis:
+      enabled: false
 
 logging:
   level:
@@ -71,3 +94,11 @@ app:
       - "*"
     allow-credentials: true
     max-age: 3600
+
+  rate-limit:
+    sessions:
+      replenish-rate: 10
+      burst-capacity: 20
+    payments:
+      replenish-rate: 5
+      burst-capacity: 10
